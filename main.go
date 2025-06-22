@@ -3,39 +3,38 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"nucleus/auth"
+	"time"
 )
 
+// loggingMiddleware logs each request with method, path, and response time
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		log.Printf("Request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+
+		// Call the next handler
+		next.ServeHTTP(w, r)
+
+		// Log the response time
+		duration := time.Since(start)
+		log.Printf("Response: %s %s completed in %v", r.Method, r.URL.Path, duration)
+	})
+}
+
 func main() {
-	/* Create a new user */
-	// var password string = "@D()JASNC@S23D"
-	// userParams := &user.CreateParams{
-	// 	EmailAddresses: &[]string{"test@test.com"},
-	// 	Password:       &password,
-	// }
 
-	// user, err := auth.CreateUser(userParams)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Welcome to the Nucleus API!")
+	})
 
-	// fmt.Println(user)
+	mux.HandleFunc("/users/create", auth.CreateUserHandler)
 
-	// users, err := auth.ListUsers()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	handler := loggingMiddleware(mux)
 
-	// for _, user := range users {
-	// 	fmt.Println(user.ID)
-	// }
-
-	user, err := auth.GetUser("user_2ysC4ZWuAK2UPR84855DhG0w5v1")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(user.EmailAddresses[0].EmailAddress)
-	fmt.Println(*user.FirstName)
-	fmt.Println(*user.LastName)
+	log.Println("Server starting on :8080")
+	log.Fatal(http.ListenAndServe(":8080", handler))
 }
