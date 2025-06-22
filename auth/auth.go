@@ -1,3 +1,7 @@
+/*
+Written by Juan Pablo Gutierrez
+Package auth provides a wrapper for the Clerk API.
+*/
 package auth
 
 import (

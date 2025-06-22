@@ -4,23 +4,9 @@ import (
 	"fmt"
 	"log"
 	"nucleus/auth"
-	"os"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	clerkAPIKey := os.Getenv("CLERK_SECRET_KEY")
-	if clerkAPIKey == "" {
-		log.Fatal("CLERK_SECRET_KEY environment variable is required")
-	}
-
 	/* Create a new user */
 	// var password string = "@D()JASNC@S23D"
 	// userParams := &user.CreateParams{
@@ -35,12 +21,21 @@ func main() {
 
 	// fmt.Println(user)
 
-	users, err := auth.ListUsers()
+	// users, err := auth.ListUsers()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// for _, user := range users {
+	// 	fmt.Println(user.ID)
+	// }
+
+	user, err := auth.GetUser("user_2ysC4ZWuAK2UPR84855DhG0w5v1")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, user := range users {
-		fmt.Println(user.ID)
-	}
+	fmt.Println(user.EmailAddresses[0].EmailAddress)
+	fmt.Println(*user.FirstName)
+	fmt.Println(*user.LastName)
 }
