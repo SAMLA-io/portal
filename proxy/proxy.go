@@ -49,6 +49,7 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		names:   originServersNames,
 	}
 
+	// reverse proxy handler
 	reverseProxy := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		log.Printf("Request: %s %s from %s", req.Method, req.URL.Path, req.RemoteAddr)
 		start := time.Now()
@@ -99,6 +100,7 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, originServerResponse.StatusCode, duration)
 	})
 
+	// add verifying middleware to the reverse proxy
 	proxyServer.reverseProxy = auth.VerifyingMiddleware(reverseProxy)
 	return proxyServer, nil
 }
