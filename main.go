@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"nucleus/auth"
+	"nucleus/proxy"
 	"time"
 )
 
@@ -25,16 +25,37 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
+	// start the API server in a goroutine
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Welcome the first server!")
+		})
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Welcome to the Nucleus API!")
-	})
+		handler := loggingMiddleware(mux)
 
-	mux.HandleFunc("/users/create", auth.CreateUserHandler)
+		log.Println("API Server starting on :8081")
+		log.Fatal(http.ListenAndServe(":8081", handler))
+	}()
 
-	handler := loggingMiddleware(mux)
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Welcome the second server!")
+		})
 
-	log.Println("Server starting on :8080")
-	log.Fatal(http.ListenAndServe(":8080", handler))
+		handler := loggingMiddleware(mux)
+
+		log.Println("API Server starting on :8082")
+		log.Fatal(http.ListenAndServe(":8082", handler))
+	}()
+
+	// start the proxy server in the main goroutine
+	server, err := proxy.NewProxyServer("proxy/config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Proxy Server starting...")
+	server.Start()
 }

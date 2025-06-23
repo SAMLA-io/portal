@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"nucleus/auth"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type ProxyServer struct {
 	clients      []*http.Client
 	urls         []*url.URL
 	names        []string
-	reverseProxy http.HandlerFunc
+	reverseProxy http.Handler
 }
 
 func NewProxyServer(configPath string) (*ProxyServer, error) {
@@ -98,7 +99,7 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, originServerResponse.StatusCode, duration)
 	})
 
-	proxyServer.reverseProxy = reverseProxy
+	proxyServer.reverseProxy = auth.VerifyingMiddleware(reverseProxy)
 	return proxyServer, nil
 }
 
