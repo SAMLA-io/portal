@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type ProxyServer struct {
@@ -48,11 +49,16 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 	}
 
 	reverseProxy := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		log.Printf("Request: %s %s from %s", req.Method, req.URL.Path, req.RemoteAddr)
+		start := time.Now()
+
 		// find the origin server index from the query string
 		originServerIndex, err := proxyServer.selectBackend(req)
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
 			_, _ = fmt.Fprint(rw, err)
+			duration := time.Since(start)
+			log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, http.StatusBadRequest, duration)
 			return
 		}
 
@@ -67,17 +73,29 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			_, _ = fmt.Fprint(rw, err)
+			duration := time.Since(start)
+			log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, http.StatusInternalServerError, duration)
 			return
 		}
 		defer originServerResponse.Body.Close()
+
+		// copy the response headers from the origin server to the client
+		for key, values := range originServerResponse.Header {
+			for _, value := range values {
+				rw.Header().Add(key, value)
+			}
+		}
 
 		// copy the response from the origin server to the client
 		rw.WriteHeader(originServerResponse.StatusCode)
 		_, err = io.Copy(rw, originServerResponse.Body)
 		if err != nil {
-			log.Printf("Error copying response: %v", err)
-			rw.WriteHeader(http.StatusInternalServerError)
+			log.Printf("Error copying response body: %v", err)
+			return
 		}
+
+		duration := time.Since(start)
+		log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, originServerResponse.StatusCode, duration)
 	})
 
 	proxyServer.reverseProxy = reverseProxy
@@ -105,9 +123,5 @@ func (p *ProxyServer) selectBackend(req *http.Request) (int, error) {
 }
 
 func init() {
-	server, err := NewProxyServer("proxy/config.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-	server.Start()
+
 }
