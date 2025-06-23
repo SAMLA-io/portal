@@ -6,16 +6,23 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
 )
 
-func init() {
-	// Load configuration from JSON file
-	config, err := LoadConfig("proxy/config.json")
+type ProxyServer struct {
+	config       *Config
+	clients      []*http.Client
+	urls         []*url.URL
+	names        []string
+	reverseProxy http.HandlerFunc
+}
+
+func NewProxyServer(configPath string) (*ProxyServer, error) {
+	config, err := LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// create clients, urls and names slices for all origin servers from the config
 	originServersClients := make([]*http.Client, len(config.OriginServers))
 	originServersURLs := make([]*url.URL, len(config.OriginServers))
 	originServersNames := make([]string, len(config.OriginServers))
@@ -27,32 +34,25 @@ func init() {
 
 		originServersClients[i] = &http.Client{
 			Timeout: originServer.GetTimeout(),
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(originServerURL),
-			},
 		}
 
 		originServersURLs[i] = originServerURL
 		originServersNames[i] = originServer.Name
 	}
 
+	proxyServer := &ProxyServer{
+		config:  config,
+		clients: originServersClients,
+		urls:    originServersURLs,
+		names:   originServersNames,
+	}
+
 	reverseProxy := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if config.Logging.Enabled {
-			fmt.Printf("[reverse proxy server] received request at: %s\n", time.Now())
-		}
-
 		// find the origin server index from the query string
-		var originServerIndex int = -1
-		for i, originServerName := range originServersNames {
-			if originServerName == req.URL.Query().Get("origin_server") {
-				originServerIndex = i
-				break
-			}
-		}
-
-		if originServerIndex == -1 {
+		originServerIndex, err := proxyServer.selectBackend(req)
+		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
-			_, _ = fmt.Fprint(rw, "Server not found", http.StatusBadRequest)
+			_, _ = fmt.Fprint(rw, err)
 			return
 		}
 
@@ -80,8 +80,34 @@ func init() {
 		}
 	})
 
-	// Start server with configured port
-	serverAddr := config.Proxy.Host + config.Proxy.Port
+	proxyServer.reverseProxy = reverseProxy
+	return proxyServer, nil
+}
+
+func (p *ProxyServer) Start() {
+	serverAddr := p.config.Proxy.Host + p.config.Proxy.Port
 	log.Printf("Starting proxy server on %s", serverAddr)
-	log.Fatal(http.ListenAndServe(serverAddr, reverseProxy))
+	log.Fatal(http.ListenAndServe(serverAddr, p.reverseProxy))
+}
+
+func (p *ProxyServer) selectBackend(req *http.Request) (int, error) {
+	serverName := req.URL.Query().Get("desired_server")
+	if serverName == "" {
+		return -1, fmt.Errorf("missing desired_server parameter")
+	}
+
+	for i, name := range p.names {
+		if name == serverName {
+			return i, nil
+		}
+	}
+	return -1, fmt.Errorf("server '%s' not found", serverName)
+}
+
+func init() {
+	server, err := NewProxyServer("proxy/config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	server.Start()
 }

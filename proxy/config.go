@@ -7,17 +7,13 @@ import (
 	"time"
 )
 
-// Config represents the proxy configuration
+// Config represents the proxy configuration from the config.json file
 type Config struct {
 	Proxy struct {
 		Port string `json:"port"`
 		Host string `json:"host"`
 	} `json:"proxy"`
 	OriginServers []OriginServer `json:"origin_servers"`
-	Logging       struct {
-		Enabled bool   `json:"enabled"`
-		Level   string `json:"level"`
-	} `json:"logging"`
 }
 
 type OriginServer struct {
