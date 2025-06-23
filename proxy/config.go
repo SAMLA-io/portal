@@ -10,10 +10,10 @@ import (
 // Config represents the proxy configuration from the config.json file
 type Config struct {
 	Proxy struct {
-		Port string `json:"port"`
-		Host string `json:"host"`
+		Port          string         `json:"port"`
+		Host          string         `json:"host"`
+		OriginServers []OriginServer `json:"origin_servers"`
 	} `json:"proxy"`
-	OriginServers []OriginServer `json:"origin_servers"`
 }
 
 type OriginServer struct {

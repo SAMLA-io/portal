@@ -25,10 +25,10 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 	}
 
 	// create clients, urls and names slices for all origin servers from the config
-	originServersClients := make([]*http.Client, len(config.OriginServers))
-	originServersURLs := make([]*url.URL, len(config.OriginServers))
-	originServersNames := make([]string, len(config.OriginServers))
-	for i, originServer := range config.OriginServers {
+	originServersClients := make([]*http.Client, len(config.Proxy.OriginServers))
+	originServersURLs := make([]*url.URL, len(config.Proxy.OriginServers))
+	originServersNames := make([]string, len(config.Proxy.OriginServers))
+	for i, originServer := range config.Proxy.OriginServers {
 		originServerURL, err := url.Parse(originServer.URL)
 		if err != nil {
 			log.Fatalf("Invalid origin server URL in config: %v", err)
