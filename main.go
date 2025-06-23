@@ -51,7 +51,7 @@ func main() {
 	}()
 
 	// start the proxy server in the main goroutine
-	server, err := proxy.NewProxyServer("proxy/config.json")
+	server, err := proxy.NewProxyServer("config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
