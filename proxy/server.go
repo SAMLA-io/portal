@@ -6,18 +6,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"nucleus/schema"
 	"time"
 
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 )
 
-type ProxyServer struct {
-	config       *Config
-	clients      []*http.Client
-	urls         []*url.URL
-	names        []string
-	reverseProxy http.Handler
-}
+type ProxyServer = schema.ProxyServer
 
 func NewProxyServer(configPath string) (*ProxyServer, error) {
 	config, err := LoadConfig(configPath)
@@ -25,29 +20,17 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// create clients, urls and names slices for all origin servers from the config
-	originServersClients := make([]*http.Client, len(config.Proxy.OriginServers))
-	originServersURLs := make([]*url.URL, len(config.Proxy.OriginServers))
-	originServersNames := make([]string, len(config.Proxy.OriginServers))
-	for i, originServer := range config.Proxy.OriginServers {
-		originServerURL, err := url.Parse(originServer.URL)
-		if err != nil {
-			log.Fatalf("Invalid origin server URL in config: %v", err)
-		}
+	proxyConfig := &config.Proxy
 
-		originServersClients[i] = &http.Client{
-			Timeout: originServer.GetTimeout(),
+	// create clients for all origin servers from the config
+	for i := range proxyConfig.OriginServers {
+		proxyConfig.OriginServers[i].Client = &http.Client{
+			Timeout: proxyConfig.OriginServers[i].GetTimeout(),
 		}
-
-		originServersURLs[i] = originServerURL
-		originServersNames[i] = originServer.Name
 	}
 
 	proxyServer := &ProxyServer{
-		config:  config,
-		clients: originServersClients,
-		urls:    originServersURLs,
-		names:   originServersNames,
+		ProxyConfig: proxyConfig,
 	}
 
 	// reverse proxy handler
@@ -56,7 +39,16 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		start := time.Now()
 
 		// find the origin server index from the query string
-		originServerIndex, err := proxyServer.selectBackend(req)
+		originServerIndex, err := proxyServer.SelectBackend(req)
+		if err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprint(rw, err)
+			duration := time.Since(start)
+			log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, http.StatusBadRequest, duration)
+			return
+		}
+
+		originServerURL, err := url.Parse(proxyServer.ProxyConfig.OriginServers[originServerIndex].URL)
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
 			_, _ = fmt.Fprint(rw, err)
@@ -66,13 +58,13 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		}
 
 		// set req Host, URL and Request URI to forward a request to the origin server
-		req.Host = originServersURLs[originServerIndex].Host
-		req.URL.Host = originServersURLs[originServerIndex].Host
-		req.URL.Scheme = originServersURLs[originServerIndex].Scheme
+		req.Host = originServerURL.Host
+		req.URL.Host = originServerURL.Host
+		req.URL.Scheme = originServerURL.Scheme
 		req.RequestURI = ""
 
 		// send a request to the origin server using configured client
-		originServerResponse, err := originServersClients[originServerIndex].Do(req)
+		originServerResponse, err := proxyServer.ProxyConfig.OriginServers[originServerIndex].Client.Do(req)
 		if err != nil {
 			rw.WriteHeader(http.StatusInternalServerError)
 			_, _ = fmt.Fprint(rw, err)
@@ -100,29 +92,9 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, originServerResponse.StatusCode, duration)
 	})
 
-	// Use Clerk's middleware to require authorization header for all requests
-	proxyServer.reverseProxy = clerkhttp.RequireHeaderAuthorization()(reverseProxy)
+	// wrap the reverse proxy with Clerk's middleware to require authorization header for all requests
+	proxyServer.ReverseProxy = clerkhttp.RequireHeaderAuthorization()(reverseProxy)
 	return proxyServer, nil
-}
-
-func (p *ProxyServer) Start() {
-	serverAddr := p.config.Proxy.Host + p.config.Proxy.Port
-	log.Printf("Starting proxy server on %s", serverAddr)
-	log.Fatal(http.ListenAndServe(serverAddr, p.reverseProxy))
-}
-
-func (p *ProxyServer) selectBackend(req *http.Request) (int, error) {
-	serverName := req.URL.Query().Get("desired_server")
-	if serverName == "" {
-		return -1, fmt.Errorf("missing desired_server parameter")
-	}
-
-	for i, name := range p.names {
-		if name == serverName {
-			return i, nil
-		}
-	}
-	return -1, fmt.Errorf("server '%s' not found", serverName)
 }
 
 func init() {
