@@ -40,6 +40,7 @@ func setup() {
 
 func main() {
 	setup()
+
 	// start the API server in a goroutine
 	go func() {
 		mux := http.NewServeMux()
