@@ -22,7 +22,7 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 
 	proxyConfig := &config.Proxy
 
-	// create clients for all origin servers from the config
+	// create http clients for all origin servers from the config
 	for i := range proxyConfig.OriginServers {
 		proxyConfig.OriginServers[i].Client = &http.Client{
 			Timeout: proxyConfig.OriginServers[i].GetTimeout(),
