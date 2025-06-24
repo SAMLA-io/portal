@@ -6,8 +6,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"nucleus/auth"
 	"time"
+
+	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 )
 
 type ProxyServer struct {
@@ -81,14 +82,13 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		}
 		defer originServerResponse.Body.Close()
 
-		// copy the response headers from the origin server to the client
+		// copy the response headers and response from the origin server to the client
 		for key, values := range originServerResponse.Header {
 			for _, value := range values {
 				rw.Header().Add(key, value)
 			}
 		}
 
-		// copy the response from the origin server to the client
 		rw.WriteHeader(originServerResponse.StatusCode)
 		_, err = io.Copy(rw, originServerResponse.Body)
 		if err != nil {
@@ -100,8 +100,8 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, originServerResponse.StatusCode, duration)
 	})
 
-	// add verifying middleware to the reverse proxy
-	proxyServer.reverseProxy = auth.VerifyingMiddleware(reverseProxy)
+	// Use Clerk's middleware to require authorization header for all requests
+	proxyServer.reverseProxy = clerkhttp.RequireHeaderAuthorization()(reverseProxy)
 	return proxyServer, nil
 }
 
