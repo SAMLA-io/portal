@@ -5,7 +5,11 @@ import (
 	"log"
 	"net/http"
 	"nucleus/proxy"
+	"os"
 	"time"
+
+	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/joho/godotenv"
 )
 
 // loggingMiddleware logs each request with method, path, and response time
@@ -24,7 +28,18 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func setup() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: .env file not found, using system environment variables")
+	}
+
+	clerk_secret_key := os.Getenv("CLERK_SECRET_KEY")
+	clerk.SetKey(clerk_secret_key)
+}
+
 func main() {
+	setup()
 	// start the API server in a goroutine
 	go func() {
 		mux := http.NewServeMux()
