@@ -2,8 +2,8 @@ package proxy
 
 import (
 	"encoding/json"
-	"nucleus/schema"
 	"os"
+	"portal/schema"
 )
 
 type Config = schema.Config

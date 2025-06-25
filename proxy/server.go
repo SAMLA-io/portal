@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"nucleus/auth"
-	"nucleus/schema"
+	"portal/auth"
+	"portal/schema"
 	"time"
 )
 

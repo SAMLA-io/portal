@@ -1,4 +1,4 @@
-module nucleus
+module portal
 
 go 1.24.4
 
