@@ -1,6 +1,6 @@
 # Portal
 
-A Go application using Clerk for authentication.
+Portal is the secure runtime gateway that verifies user access and proxies requests to the appropriate AI agents. Every user interaction with an agent passes through Portal, which validates authentication, checks access rights (from Nucleus), and routes the request to the correct Dockerized agent service.
 
 ## Environment Setup
 
