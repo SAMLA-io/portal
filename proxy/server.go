@@ -6,10 +6,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"nucleus/auth"
 	"nucleus/schema"
 	"time"
-
-	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 )
 
 type ProxyServer = schema.ProxyServer
@@ -93,7 +92,7 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 	})
 
 	// wrap the reverse proxy with Clerk's middleware to require authorization header for all requests
-	proxyServer.ReverseProxy = clerkhttp.RequireHeaderAuthorization()(reverseProxy)
+	proxyServer.ReverseProxy = auth.VerifyingMiddleware(reverseProxy)
 	return proxyServer, nil
 }
 
