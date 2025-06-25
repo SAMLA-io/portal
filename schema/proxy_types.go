@@ -18,7 +18,7 @@ type OriginServer struct {
 // GetTimeout returns the parsed timeout duration
 func (c *OriginServer) GetTimeout() time.Duration {
 	if c.Timeout == "" {
-		return 30 * time.Second // default timeout
+		return 30 * time.Second
 	}
 
 	duration, err := time.ParseDuration(c.Timeout)
