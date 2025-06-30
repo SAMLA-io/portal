@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.3.1
 	github.com/joho/godotenv v1.5.1
+	github.com/stripe/stripe-go/v82 v82.2.1
 )
 
 require (

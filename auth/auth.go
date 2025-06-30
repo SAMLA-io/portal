@@ -20,6 +20,18 @@ func VerifyingMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		// Verifies that the user has the necessary permissions to access the resource (has bought the product)
+		permissions, err := VerifyUserPermissions(userID)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if !permissions {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
 		log.Printf("Authenticated user: %s", userID)
 		next.ServeHTTP(w, r)
 	}))
