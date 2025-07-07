@@ -1,16 +1,16 @@
 {
   "proxy": {
-    "port": ":8080",
+    "port": ":8081",
     "host": "localhost",
     "origin_servers": [
       {
         "name": "origin_server_1",
-        "url": "http://127.0.0.1:8081",
+        "url": "http://127.0.0.1:8082",
         "timeout": "30s"
       },
       {
         "name": "origin_server_2",
-        "url": "http://127.0.0.1:8082",
+        "url": "http://127.0.0.1:8083",
         "timeout": "30s"
       }
     ]
