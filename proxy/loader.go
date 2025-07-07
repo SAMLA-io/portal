@@ -3,10 +3,10 @@ package proxy
 import (
 	"encoding/json"
 	"os"
-	"portal/schema"
+	"portal/types"
 )
 
-type Config = schema.Config
+type Config = types.Config
 
 // Config represents the proxy configuration from the config.json file
 

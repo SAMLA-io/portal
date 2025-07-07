@@ -1,4 +1,4 @@
-package schema
+package types
 
 type Subscription struct {
 	ID               string `json:"id"`

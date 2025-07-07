@@ -1,20 +1,16 @@
 package auth
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"os"
-	"portal/schema"
+	"portal/types"
 )
 
-type Subscription = schema.Subscription
-
-var globalCtx context.Context
+type Subscription = types.Subscription
 
 func init() {
-	globalCtx = context.Background()
 }
 
 // VerifyUserPermissions verifies that the user has the necessary

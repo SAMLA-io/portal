@@ -1,4 +1,4 @@
-package schema
+package types
 
 // Config represents the nucleus configuration from the config.json file
 type Config struct {

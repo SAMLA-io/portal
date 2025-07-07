@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"portal/auth"
-	"portal/schema"
+	schema "portal/types"
 	"time"
 )
 
