@@ -1,15 +1,14 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"portal/proxy"
 	"time"
 
 	"github.com/clerk/clerk-sdk-go/v2"
-	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/joho/godotenv"
 )
 
@@ -29,7 +28,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func setup() {
+func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: .env file not found, using system environment variables")
@@ -37,59 +36,38 @@ func setup() {
 
 	clerk_secret_key := os.Getenv("CLERK_SECRET_KEY")
 	clerk.SetKey(clerk_secret_key)
-}
-
-func main() {
-	setup()
 
 	// start the API server in a goroutine
-	// go func() {
-	// 	mux := http.NewServeMux()
-	// 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	// 		fmt.Fprintf(w, "Welcome the first server!")
-	// 	})
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Welcome the first server!")
+		})
 
-	// 	handler := loggingMiddleware(mux)
+		handler := loggingMiddleware(mux)
 
-	// 	log.Println("API Server starting on :8081")
-	// 	log.Fatal(http.ListenAndServe(":8081", handler))
-	// }()
+		log.Println("API Server starting on :8082")
+		log.Fatal(http.ListenAndServe(":8082", handler))
+	}()
 
-	// go func() {
-	// 	mux := http.NewServeMux()
-	// 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	// 		fmt.Fprintf(w, "Welcome the second server!")
-	// 	})
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "Welcome the second server!")
+		})
 
-	// 	handler := loggingMiddleware(mux)
+		handler := loggingMiddleware(mux)
 
-	// 	log.Println("API Server starting on :8082")
-	// 	log.Fatal(http.ListenAndServe(":8082", handler))
-	// }()
+		log.Println("API Server starting on :8083")
+		log.Fatal(http.ListenAndServe(":8083", handler))
+	}()
 
-	// // start the proxy server in the main goroutine
-	// server, err := proxy.NewProxyServer("config.json")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// log.Println("Proxy Server starting...")
-	// server.Start()
-	globalCtx = context.Background()
-	user, err := getUser("user_2yyVgRTPW2ctcCHYOxItlb1HdJ9")
-
+	// start the proxy server in the main goroutine
+	server, err := proxy.NewProxyServer("config.json")
 	if err != nil {
-
 		log.Fatal(err)
-
 	}
 
-	fmt.Println(*user.FirstName, *user.LastName)
-}
-
-var globalCtx context.Context
-
-func getUser(userId string) (*clerk.User, error) {
-	userDetails, err := user.Get(globalCtx, userId)
-	return userDetails, err
+	log.Println("Proxy Server starting...")
+	server.Start()
 }
