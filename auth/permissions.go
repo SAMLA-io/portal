@@ -13,8 +13,7 @@ type Subscription = types.Subscription
 func init() {
 }
 
-// VerifyUserPermissions verifies that the user has the necessary
-// permissions to access the resource (has bought the product)
+// VerifyUserPermissions verifies that the user has the necessary permissions to access the resource (has bought the product)
 func VerifyUserPermissions(jwtToken string, productID string) (bool, error) {
 	nucleusURL := os.Getenv("NUCLEUS_URL")
 
