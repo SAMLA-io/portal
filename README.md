@@ -1,73 +1,53 @@
-# Portal
+# Portal Proxy Server
 
-Portal is a secure reverse proxy server that validates user authentication and authorization before routing requests to backend services. It acts as a gateway that verifies JWT tokens via Clerk authentication and checks user subscriptions via a Nucleus service before allowing access to configured origin servers.
+A reverse proxy server with authentication and dynamic backend selection.
 
-## Features
+## Configuration
 
-- **Authentication**: Validates JWT tokens using Clerk authentication service
-- **Authorization**: Checks user subscriptions via Nucleus service to verify product access
-- **Reverse Proxy**: Routes requests to multiple configured backend services
-- **Configurable**: Supports multiple origin servers with individual timeout settings
-- **Request Logging**: Comprehensive request/response logging with timing information
+The application supports multiple configuration methods, with environment variables taking precedence over file configuration.
 
-## Architecture
+### Method 1: Environment Variables (Recommended for Docker)
 
-Portal operates as a middleware layer that:
-1. Receives HTTP requests with JWT tokens in the Authorization header
-2. Validates the token using Clerk's authentication service
-3. Checks user permissions by querying the Nucleus service for active subscriptions
-4. Routes authorized requests to the appropriate backend service based on the `desired_server` query parameter
-5. Returns the backend service response to the client
-
-## Environment Setup
-
-This project uses dotenv for environment variable management. Follow these steps to set up your environment:
-
-### 1. Install Dependencies
+Set environment variables directly:
 
 ```bash
-go mod tidy
+# Basic proxy settings
+export PROXY_PORT=":8080"
+export PROXY_HOST="0.0.0.0"
+
+# Origin servers (format: name:url:timeout,name2:url2:timeout2)
+export ORIGIN_SERVERS="server1:http://backend1:8081:30s,server2:http://backend2:8082:30s"
+
+# Clerk authentication
+export CLERK_SECRET_KEY="your_clerk_secret_key"
+
+# Optional: Custom config file path
+export CONFIG_FILE="/app/config/config.json"
 ```
 
-### 2. Create Environment File
+### Method 2: Config File Mount (Docker Volume)
 
-Copy the example environment file and configure your variables:
+Mount a config file as a volume:
 
 ```bash
-cp env.example .env
+docker run -v /path/to/config.json:/app/config/config.json your-image
 ```
 
-### 3. Configure Environment Variables
-
-Edit the `.env` file with your actual values:
-
-```env
-# Clerk API Configuration
-CLERK_SECRET_KEY=sk_live_your_actual_clerk_secret_key
-
-# Nucleus Service URL (for subscription verification)
-NUCLEUS_URL=https://your-nucleus-service.com
-
-```
-
-### 4. Configure Backend Services
-
-Edit `config.json` to specify your backend services:
-
+Example `config.json`:
 ```json
 {
   "proxy": {
-    "port": ":8081",
-    "host": "localhost",
+    "port": ":8080",
+    "host": "0.0.0.0",
     "origin_servers": [
       {
-        "name": "agent-service-1",
-        "url": "http://127.0.0.1:8082",
+        "name": "origin_server_1",
+        "url": "http://backend1:8081",
         "timeout": "30s"
       },
       {
-        "name": "agent-service-2", 
-        "url": "http://127.0.0.1:8083",
+        "name": "origin_server_2",
+        "url": "http://backend2:8082",
         "timeout": "30s"
       }
     ]
@@ -75,72 +55,117 @@ Edit `config.json` to specify your backend services:
 }
 ```
 
-### 5. Run the Application
+### Method 3: Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  portal-proxy:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PROXY_PORT=:8080
+      - PROXY_HOST=0.0.0.0
+      - ORIGIN_SERVERS=server1:http://backend1:8081:30s,server2:http://backend2:8082:30s
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+    volumes:
+      # Optional: mount config file
+      - ./config.json:/app/config/config.json
+```
+
+### Method 4: Kubernetes ConfigMap
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-config
+data:
+  config.json: |
+    {
+      "proxy": {
+        "port": ":8080",
+        "host": "0.0.0.0",
+        "origin_servers": [
+          {
+            "name": "origin_server_1",
+            "url": "http://backend1:8081",
+            "timeout": "30s"
+          }
+        ]
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-proxy
+spec:
+  template:
+    spec:
+      containers:
+      - name: portal-proxy
+        image: your-image
+        env:
+        - name: CLERK_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: clerk-secret
+              key: secret-key
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: portal-config
+```
+
+## Configuration Precedence
+
+1. **Environment Variables** (highest priority)
+2. **Config File** (if environment variables are not set)
+3. **Default Values** (lowest priority)
+
+## Environment Variables Reference
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `PROXY_PORT` | Port to bind the proxy server | `:8080` | `:8080` |
+| `PROXY_HOST` | Host to bind the proxy server | `localhost` | `0.0.0.0` |
+| `ORIGIN_SERVERS` | Comma-separated list of origin servers | None | `server1:http://backend1:8081:30s,server2:http://backend2:8082:30s` |
+| `CLERK_SECRET_KEY` | Clerk authentication secret key | None | `sk_test_...` |
+| `CONFIG_FILE` | Path to config file | `/app/config/config.json` | `/app/config/config.json` |
+
+## Origin Server Format
+
+The `ORIGIN_SERVERS` environment variable uses the format:
+```
+name:url:timeout,name2:url2:timeout2
+```
+
+- `name`: Server identifier
+- `url`: Full URL including protocol and port
+- `timeout`: Request timeout (optional, defaults to "30s")
+
+## Building and Running
 
 ```bash
-go run main.go
-```
+# Build the Docker image
+docker build -t portal-proxy .
 
-## API Usage
+# Run with environment variables
+docker run -p 8080:8080 \
+  -e PROXY_PORT=:8080 \
+  -e PROXY_HOST=0.0.0.0 \
+  -e ORIGIN_SERVERS="server1:http://backend1:8081:30s" \
+  -e CLERK_SECRET_KEY="your_secret_key" \
+  portal-proxy
 
-### Request Format
-
-All requests must include:
-- `Authorization` header with a valid JWT token from Clerk
-- `desired_server` query parameter specifying which backend service to route to
-- `product_id` query parameter for subscription verification
-
-### Example Request
-
-```bash
-curl -H "Authorization: Bearer your_jwt_token" \
-     "http://localhost:8081/api/endpoint?desired_server=agent-service-1&product_id=prod_123"
-```
-
-### Response Codes
-
-- `200 OK`: Request successfully routed to backend service
-- `400 Bad Request`: Missing `desired_server` parameter or invalid server name
-- `401 Unauthorized`: Missing or invalid JWT token
-- `403 Forbidden`: User doesn't have active subscription for the specified product
-- `500 Internal Server Error`: Backend service error or timeout
-
-## Configuration
-
-### Origin Server Configuration
-
-Each origin server in `config.json` supports:
-- `name`: Unique identifier used in the `desired_server` parameter
-- `url`: Full URL of the backend service
-- `timeout`: Request timeout (e.g., "30s", "1m", "5m")
-
-### Environment Variables
-
-- `CLERK_SECRET_KEY`: Your Clerk secret key (required)
-- `NUCLEUS_URL`: URL of the Nucleus service for subscription verification (required)
-
-## Security Notes
-
-- Never commit your `.env` file to version control
-- The `.env` file is already in `.gitignore`
-- Use `env.example` as a template for required environment variables
-- JWT tokens are validated on every request
-- Subscription status is checked for each request to ensure real-time access control
-
-## Dependencies
-
-- **Clerk SDK**: JWT token validation and user authentication
-- **Godotenv**: Environment variable management
-- **Standard Library**: HTTP server, JSON parsing, and networking
-
-## Project Structure
-
-```
-portal/
-├── auth/           # Authentication and authorization logic
-├── proxy/          # Reverse proxy implementation
-├── types/          # Data structures and type definitions
-├── config.json     # Backend service configuration
-├── main.go         # Application entry point
-└── README.md       # This file
+# Run with config file mount
+docker run -p 8080:8080 \
+  -v $(pwd)/config.json:/app/config/config.json \
+  -e CLERK_SECRET_KEY="your_secret_key" \
+  portal-proxy
 ``` 

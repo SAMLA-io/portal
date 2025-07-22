@@ -91,8 +91,19 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 		log.Printf("Response: %s %s -> STATUS: %d completed in %v", req.Method, req.URL.Path, originServerResponse.StatusCode, duration)
 	})
 
-	// wrap the reverse proxy with Clerk's middleware to require authorization header for all requests
-	proxyServer.ReverseProxy = auth.VerifyingMiddleware(reverseProxy)
+	// Create a mux to handle both health check and proxy routes
+	mux := http.NewServeMux()
+
+	// Health check endpoint (no auth required)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Proxy routes (with auth)
+	mux.Handle("/", auth.VerifyingMiddleware(reverseProxy))
+
+	proxyServer.ReverseProxy = mux
 	return proxyServer, nil
 }
 

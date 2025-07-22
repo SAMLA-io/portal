@@ -18,8 +18,14 @@ func main() {
 	clerk_secret_key := os.Getenv("CLERK_SECRET_KEY")
 	clerk.SetKey(clerk_secret_key)
 
+	// Get config file path from environment or use default
+	configPath := os.Getenv("CONFIG_FILE")
+	if configPath == "" {
+		configPath = "config.json"
+	}
+
 	// start the proxy server in the main goroutine
-	server, err := proxy.NewProxyServer("config.json")
+	server, err := proxy.NewProxyServer(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
